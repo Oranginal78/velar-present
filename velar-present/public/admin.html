@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>VELAR Present — Admin</title>
+<link rel="icon" href="/assets/favicon.png">
+<style>
+  :root{--bg:#070808;--fg:#f4f4f1;--mute:#8b8f93;--line:#24272a;--blue:#3f7fe0}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
+  .top{display:grid;grid-template-columns:1fr 1fr 1fr;padding:24px 32px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;line-height:1.3}
+  .top div:last-child{text-align:right}
+  main{max-width:1080px;margin:0 auto;padding:24px 32px 96px}
+  h1{font-size:clamp(44px,7vw,96px);line-height:.95;letter-spacing:-.03em;margin:24px 0 40px;text-transform:uppercase}
+  #drop{border:1px dashed #4a4e52;padding:56px 24px;text-align:center;cursor:pointer;transition:.15s}
+  #drop.over{border-color:var(--fg);background:#111314}
+  #drop b{display:block;font-size:22px;text-transform:uppercase;letter-spacing:.02em;margin-bottom:8px}
+  #drop span{color:var(--mute);font-size:14px}
+  .fields{display:grid;grid-template-columns:2fr 1fr auto;gap:12px;margin-top:16px;align-items:end}
+  label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);display:block;margin-bottom:6px}
+  input[type=text]{width:100%;background:#0f1112;border:1px solid var(--line);color:var(--fg);padding:12px;font:inherit;font-size:15px}
+  .chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mute);padding-bottom:12px}
+  button{background:var(--fg);color:var(--bg);border:0;padding:13px 20px;font:inherit;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+  button.ghost{background:none;color:var(--fg);border:1px solid #3a3d40;padding:8px 12px;font-weight:400;font-size:12px}
+  button.ghost:hover{border-color:var(--fg)}
+  button:disabled{opacity:.4;cursor:default}
+  #bar{height:2px;background:var(--line);margin-top:16px;display:none}
+  #bar i{display:block;height:100%;width:0;background:var(--fg);transition:width .1s}
+  #msg{margin-top:16px;font-size:14px;color:var(--mute);min-height:20px}
+  #result{display:none;margin-top:24px;border:1px solid var(--line);padding:20px;gap:12px;align-items:center;flex-wrap:wrap}
+  #result a{color:var(--fg);font-size:20px;font-weight:700;word-break:break-all}
+  h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:64px 0 12px;font-weight:400}
+  .row{display:flex;gap:16px;align-items:center;border-top:1px solid var(--line);padding:16px 0;flex-wrap:wrap}
+  .row .t{flex:1;min-width:200px}
+  .row .t b{display:block;font-size:17px;text-transform:uppercase;letter-spacing:.01em}
+  .row .t small{color:var(--mute);font-size:13px}
+  .empty{color:var(--mute);font-size:14px;border-top:1px solid var(--line);padding:16px 0}
+  @media (max-width:700px){.fields{grid-template-columns:1fr}.top{padding:16px}main{padding:16px 16px 64px}}
+</style>
+</head>
+<body>
+<div class="top"><div>Velar<br>Studio</div><div>Present<br>Admin</div><div><img src="/assets/velar-logo-white.png" alt="VELAR" style="height:28px"></div></div>
+<main>
+  <h1>Partager<br>une prez.</h1>
+
+  <div id="drop" tabindex="0" role="button" aria-label="Choisir un fichier">
+    <b>Glisse ta prez ici</b>
+    <span>Export web : un fichier .html, ou un .zip (html + vidéos/images) — ou clique pour choisir</span>
+  </div>
+  <input id="file" type="file" accept=".html,.htm,.zip" hidden>
+
+  <div class="fields">
+    <div><label for="title">Titre (affiché au client)</label><input id="title" type="text" placeholder="Sumeria — Concepts vidéo"></div>
+    <div><label for="slug">Lien : /…</label><input id="slug" type="text" placeholder="sumeria"></div>
+    <div class="chk"><input id="replace" type="checkbox"><label for="replace" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px">Remplacer si existe</label></div>
+  </div>
+  <div style="margin-top:16px"><button id="send" disabled>Mettre en ligne</button></div>
+  <div id="bar"><i></i></div>
+  <div id="msg"></div>
+  <div id="result"><a id="link" target="_blank" rel="noopener"></a><span style="flex:1"></span><button class="ghost" id="copy">Copier le lien</button></div>
+
+  <h2>Prez en ligne</h2>
+  <div id="list"></div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let file = null;
+const slugify = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+
+function pick(f) {
+  if (!f) return;
+  if (!/\.(html?|zip)$/i.test(f.name)) { $("msg").textContent = "Format accepté : .html ou .zip"; return; }
+  file = f;
+  const base = f.name.replace(/\.(html?|zip)$/i, "");
+  if (!$("title").value) $("title").value = base;
+  if (!$("slug").value) $("slug").value = slugify(base);
+  $("msg").textContent = f.name + " · " + (f.size / 1048576).toFixed(1) + " Mo";
+  $("send").disabled = false;
+}
+
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") $("file").click(); };
+$("file").onchange = (e) => pick(e.target.files[0]);
+["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => pick(e.dataTransfer.files[0]));
+$("slug").oninput = (e) => { e.target.value = slugify(e.target.value); };
+
+$("send").onclick = () => {
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("title", $("title").value);
+  fd.append("slug", $("slug").value);
+  fd.append("replace", $("replace").checked ? "1" : "0");
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/decks");
+  $("send").disabled = true; $("bar").style.display = "block"; $("result").style.display = "none";
+  xhr.upload.onprogress = (e) => { if (e.lengthComputable) $("bar").firstElementChild.style.width = (100 * e.loaded / e.total) + "%"; $("msg").textContent = "Envoi…"; };
+  xhr.onload = () => {
+    $("bar").style.display = "none"; $("bar").firstElementChild.style.width = 0;
+    let r = {}; try { r = JSON.parse(xhr.responseText); } catch {}
+    if (xhr.status !== 200) { $("msg").textContent = r.error || "Erreur " + xhr.status; $("send").disabled = false; return; }
+    $("msg").textContent = "En ligne.";
+    $("link").href = r.url; $("link").textContent = r.url; $("result").style.display = "flex";
+    file = null; $("title").value = ""; $("slug").value = ""; $("replace").checked = false; $("file").value = "";
+    load();
+  };
+  xhr.onerror = () => { $("msg").textContent = "Envoi impossible."; $("send").disabled = false; };
+  xhr.send(fd);
+};
+
+$("copy").onclick = () => copy($("link").href, $("copy"));
+function copy(t, btn) {
+  navigator.clipboard.writeText(t).then(() => { const o = btn.textContent; btn.textContent = "Copié ✓"; setTimeout(() => (btn.textContent = o), 1500); });
+}
+
+async function load() {
+  const r = await fetch("/api/decks"); const decks = await r.json();
+  const list = $("list"); list.innerHTML = "";
+  if (!decks.length) { list.innerHTML = '<div class="empty">Aucune prez pour l’instant.</div>'; return; }
+  for (const d of decks) {
+    const url = location.origin + "/" + d.slug;
+    const row = document.createElement("div"); row.className = "row";
+    const t = document.createElement("div"); t.className = "t";
+    const b = document.createElement("b"); b.textContent = d.title;
+    const s = document.createElement("small"); s.textContent = "/" + d.slug + " · " + new Date(d.created).toLocaleDateString("fr-FR");
+    t.append(b, s);
+    const open = document.createElement("button"); open.className = "ghost"; open.textContent = "Ouvrir"; open.onclick = () => window.open(url, "_blank");
+    const cp = document.createElement("button"); cp.className = "ghost"; cp.textContent = "Copier le lien"; cp.onclick = () => copy(url, cp);
+    const del = document.createElement("button"); del.className = "ghost"; del.textContent = "Supprimer";
+    del.onclick = async () => { if (!confirm("Supprimer « " + d.title + " » ? Le lien ne marchera plus.")) return; await fetch("/api/decks/" + d.slug, { method: "DELETE" }); load(); };
+    row.append(t, open, cp, del); list.append(row);
+  }
+}
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: velar-present
+    runtime: node
+    plan: starter            # un disque persistant demande une instance payante
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: ADMIN_PASSWORD  # à saisir dans Render au moment de la création
+        sync: false
+      - key: DATA_DIR
+        value: /var/data
+      - key: MAX_UPLOAD_MB
+        value: "1024"
+    disk:
+      name: decks
+      mountPath: /var/data
+      sizeGB: 5
