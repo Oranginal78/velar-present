@@ -2,11 +2,12 @@ services:
   - type: web
     name: velar-present
     runtime: node
-    plan: starter            # un disque persistant demande une instance payante
+    rootDir: velar-present
+    plan: starter
     buildCommand: npm install
     startCommand: node server.js
     envVars:
-      - key: ADMIN_PASSWORD  # à saisir dans Render au moment de la création
+      - key: ADMIN_PASSWORD
         sync: false
       - key: DATA_DIR
         value: /var/data
