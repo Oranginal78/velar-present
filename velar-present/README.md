@@ -2,7 +2,7 @@
 
 Glisse une prez (export web), récupère un lien VELAR à envoyer au client.
 
-- **Admin** : `https://present.velar-studio.com/admin` (mot de passe = `ADMIN_PASSWORD`, nom d'utilisateur au choix)
+- **Admin** : `https://present.velar-studio.com/admin-<ADMIN_TOKEN>` — lien secret, sans mot de passe (à garder en favori, ne pas partager). Sans `ADMIN_TOKEN`, l'admin reste sur `/admin` avec le mot de passe `ADMIN_PASSWORD`.
 - **Lien client** : `https://present.velar-studio.com/<lien>` — plein écran, mobile, aperçu VELAR dans WhatsApp
 - **Formats** : `.html` (export « Web page ») ou `.zip` (le html + ses vidéos/images à côté)
 

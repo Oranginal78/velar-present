@@ -12,6 +12,8 @@ const DATA = process.env.DATA_DIR || path.join(__dirname, "data");
 const DECKS = path.join(DATA, "decks");
 const TMP = path.join(DATA, "tmp");
 const PASS = process.env.ADMIN_PASSWORD || "";
+// Lien admin secret : /admin-<ADMIN_TOKEN> (sans mot de passe). Sans ADMIN_TOKEN, on garde /admin + mot de passe.
+const TOKEN = (process.env.ADMIN_TOKEN || "").trim();
 const MAX_MB = Number(process.env.MAX_UPLOAD_MB || 1024);
 const RESERVED = new Set(["admin", "api", "d", "assets", "favicon.ico", "robots.txt"]);
 
@@ -70,7 +72,14 @@ function findEntry(dir) {
 function rmrf(p) { fs.rmSync(p, { recursive: true, force: true }); }
 
 // ---------- auth (admin uniquement) ----------
+const sameSecret = (x, y) => {
+  const a = Buffer.from(String(x || "")), b = Buffer.from(String(y || ""));
+  return a.length === b.length && b.length > 0 && crypto.timingSafeEqual(a, b);
+};
+
 function auth(req, res, next) {
+  if (TOKEN && sameSecret(req.get("x-velar-admin"), TOKEN)) return next();
+  if (TOKEN && !PASS) return res.status(401).json({ error: "Accès réservé à VELAR." });
   if (!PASS) return res.status(500).send("ADMIN_PASSWORD n'est pas défini sur le serveur.");
   const [type, value] = (req.headers.authorization || "").split(" ");
   if (type === "Basic" && value) {
@@ -85,7 +94,15 @@ function auth(req, res, next) {
 // ---------- admin ----------
 const upload = multer({ dest: TMP, limits: { fileSize: MAX_MB * 1024 * 1024 } });
 
-app.get("/admin", auth, (req, res) => res.sendFile(path.join(__dirname, "public", "admin.html")));
+const sendAdmin = (res) => {
+  res.set({ "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow", "Cache-Control": "no-store" });
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
+};
+if (TOKEN) {
+  app.get("/admin-:token", (req, res, next) => (sameSecret(req.params.token, TOKEN) ? sendAdmin(res) : next()));
+} else {
+  app.get("/admin", auth, (req, res) => sendAdmin(res));
+}
 app.get("/api/decks", auth, (req, res) => res.json(listDecks()));
 
 app.post("/api/decks", auth, upload.single("file"), (req, res) => {

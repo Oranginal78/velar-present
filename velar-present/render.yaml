@@ -9,6 +9,8 @@ services:
     envVars:
       - key: ADMIN_PASSWORD
         sync: false
+      - key: ADMIN_TOKEN
+        sync: false
       - key: DATA_DIR
         value: /var/data
       - key: MAX_UPLOAD_MB
