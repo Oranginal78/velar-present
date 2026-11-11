@@ -99,6 +99,7 @@ $("send").onclick = () => {
   fd.append("replace", $("replace").checked ? "1" : "0");
   const xhr = new XMLHttpRequest();
   xhr.open("POST", "/api/decks");
+  if (ADMIN) xhr.setRequestHeader("X-Velar-Admin", ADMIN);
   $("send").disabled = true; $("bar").style.display = "block"; $("result").style.display = "none";
   xhr.upload.onprogress = (e) => { if (e.lengthComputable) $("bar").firstElementChild.style.width = (100 * e.loaded / e.total) + "%"; $("msg").textContent = "Envoi…"; };
   xhr.onload = () => {
@@ -119,8 +120,11 @@ function copy(t, btn) {
   navigator.clipboard.writeText(t).then(() => { const o = btn.textContent; btn.textContent = "Copié ✓"; setTimeout(() => (btn.textContent = o), 1500); });
 }
 
+const ADMIN = (location.pathname.match(/^\/admin-([^\/]+)/) || [])[1] || "";
+const H = ADMIN ? { "X-Velar-Admin": decodeURIComponent(ADMIN) } : {};
+
 async function load() {
-  const r = await fetch("/api/decks"); const decks = await r.json();
+  const r = await fetch("/api/decks", { headers: H }); const decks = await r.json();
   const list = $("list"); list.innerHTML = "";
   if (!decks.length) { list.innerHTML = '<div class="empty">Aucune prez pour l’instant.</div>'; return; }
   for (const d of decks) {
@@ -133,7 +137,7 @@ async function load() {
     const open = document.createElement("button"); open.className = "ghost"; open.textContent = "Ouvrir"; open.onclick = () => window.open(url, "_blank");
     const cp = document.createElement("button"); cp.className = "ghost"; cp.textContent = "Copier le lien"; cp.onclick = () => copy(url, cp);
     const del = document.createElement("button"); del.className = "ghost"; del.textContent = "Supprimer";
-    del.onclick = async () => { if (!confirm("Supprimer « " + d.title + " » ? Le lien ne marchera plus.")) return; await fetch("/api/decks/" + d.slug, { method: "DELETE" }); load(); };
+    del.onclick = async () => { if (!confirm("Supprimer « " + d.title + " » ? Le lien ne marchera plus.")) return; await fetch("/api/decks/" + d.slug, { method: "DELETE", headers: H }); load(); };
     row.append(t, open, cp, del); list.append(row);
   }
 }
